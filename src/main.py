@@ -15,6 +15,7 @@ api_token = os.getenv("TOKEN_API_ARGUS")
 
 path_log_file = "logs/argus.log"
 path_data_file = "data/argus.xlsx"
+path_data_dict = ""
 
 
 
@@ -56,9 +57,11 @@ def fazer_requisicao(data_inicial, data_final):
     Returns:
         dict or list: Parsed JSON response from the API
     '''
+    data_inicial = data_inicial.strftime("%Y-%m-%d")
+    data_final = data_final.strftime("%Y-%m-%d")
 
     url = (
-        f"https://argus.app.br/apiargus/report/tabulacoesdetalhadas?"
+        f"https://argus.app.br/apiargus/report/ligacoesdetalhadas?"
         f"periodoInicial={data_inicial}&periodoFinal={data_final}&idCampanha=1"
     )
 
@@ -74,41 +77,113 @@ def fazer_requisicao(data_inicial, data_final):
     return dados
 
 
-def salvar_arquivo(data):
-    '''
-    Save the response data in the Excel file   
-    '''
-    if not os.path.exists(path_data_file):
-        os.makedirs(os.path.dirname(path_data_file), exist_ok=True)
-    else:
-        df = pd.DataFrame(data)
-        df.to_excel(path_data_file)
-        pass
+# def salvar_arquivo(data):
+#     caminho = os.path.join("Data", "Argus.xlsx")
+#     os.makedirs(os.path.dirname(caminho), exist_ok=True)
 
+#     # achatar lista de listas
+#     registros = [item for sublist in data for item in sublist]
+
+#     # criar DataFrame estruturado
+#     df = pd.DataFrame.from_records(registros)
+
+#     df.to_excel(caminho, index=False)
+#     print("✅ Excel salvo com colunas corretas")
+def tratar_datas_api(tabulacoes):
+    for item in tabulacoes:
+        if 'dataEvento' in item and item['dataEvento']:
+            dt = datetime.fromisoformat(item['dataEvento'])
+
+            # remover timezone
+            dt = dt.replace(tzinfo=None)
+
+            # criar novos campos
+            item['dataEvento'] = dt.date()
+            item['horaEvento'] = dt.time()
+
+        if 'dataImportacao' in item and item['dataImportacao']:
+            dt = datetime.fromisoformat(item['dataImportacao'])
+            dt = dt.replace(tzinfo=None)
+
+            item['dataImportacao'] = dt.date()
+            item['horaImportacao'] = dt.time()
+
+    return tabulacoes
 
 resultado = []
+
 def main():
+    caminho = os.path.join("Data", "Argus.xlsx")
+    df = pd.DataFrame()
 
-# Se não existir o arquivo deve puxar da data 10/11/2025 até a data atual
-# se o arquivo já existir deve pegar a ultima data presente na base e fazer ela ate a data atual 
-
-    if not os.path.exists(path_data_file):
-        data_inicial = datetime.strftime("2025-11-10", "%Y-%m-%d")
+    if not os.path.exists(caminho):
+        data_inicial = datetime.strptime("2025-11-10", "%Y-%m-%d")
         data_final = data_inicial
+
         while True:
             try:
-                data = fazer_requisicao(data_inicial,data_final)
-                resultado.append(data)
-                data_inicial = data_inicial + timedelta(days=1)
+                data = fazer_requisicao(data_inicial, data_final)
+                tabulacoes = tratar_datas_api(data.get("tabulacoes", []))
+                resultado.append(tabulacoes)
 
-                if data.get('qtdeRegistros') <= 0:
+                data_inicial += timedelta(days=1)
+                data_final = data_inicial
+
+                if data_inicial >= datetime.now():
                     break
-                else:
-                    salvar_arquivo(resultado)
 
             except Exception as e:
-                print("Deu ruim")
-        
+                print(f"❌ Erro ao processar {e}")
+
+    else:
+        df = pd.read_excel(caminho)
+
+        df['dataEvento'] = pd.to_datetime(df['dataEvento'], errors='coerce').dt.date
+
+        ultima_data = max(df['dataEvento'])
+        print(ultima_data)
+        print("Última data salva:", ultima_data)
+
+        # remover totalmente a última data
+        df = df[df['dataEvento'] != ultima_data]
+
+        # buscar novamente
+        data_inicial = datetime.combine(ultima_data, datetime.min.time())
+        data_final = data_inicial
+
+        while True:
+            try:
+                data = fazer_requisicao(data_inicial, data_final)
+                tabulacoes = tratar_datas_api(data.get("tabulacoes", []))
+                resultado.append(tabulacoes)
+
+                data_inicial += timedelta(days=1)
+                data_final = data_inicial
+                print(f"Data atual: {data_inicial}")
+
+                if data_inicial >= datetime.now():
+                    break
+
+            except Exception as e:
+                print(f"❌ Erro ao processar {e}") 
+    
+    novos_registros = [item for sublist in resultado for item in sublist]
+
+    if novos_registros:
+        df_novo = pd.DataFrame.from_records(novos_registros)
+        df = pd.concat([df, df_novo], ignore_index=True)
+
+        df['dataEvento'] = pd.to_datetime(df['dataEvento'], errors='coerce').dt.date
+
+        df.to_excel(caminho, index=False)
+        print("✅ Atualização concluída")
+    else:
+        print("Nenhum dado novo encontrado")
+
 
 if __name__ == "__main__":
-    main()
+    #main()
+    data_inicial = datetime.strptime("2025-11-25", "%Y-%m-%d")
+    data_final = data_inicial
+    data = fazer_requisicao(data_inicial,data_final)
+    salvar_json(data)
