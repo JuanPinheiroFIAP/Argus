@@ -91,15 +91,15 @@ def fazer_requisicao(data_inicial, data_final):
 #     print("✅ Excel salvo com colunas corretas")
 def tratar_datas_api(tabulacoes):
     for item in tabulacoes:
-        if 'dataEvento' in item and item['dataEvento']:
-            dt = datetime.fromisoformat(item['dataEvento'])
+        if 'dataHoraLigacao' in item and item['dataHoraLigacao']:
+            dt = datetime.fromisoformat(item['dataHoraLigacao'])
 
             # remover timezone
             dt = dt.replace(tzinfo=None)
 
             # criar novos campos
-            item['dataEvento'] = dt.date()
-            item['horaEvento'] = dt.time()
+            item['dataHoraLigacao'] = dt.date()
+            item['horaLigacao'] = dt.time()
 
         if 'dataImportacao' in item and item['dataImportacao']:
             dt = datetime.fromisoformat(item['dataImportacao'])
@@ -114,16 +114,23 @@ resultado = []
 
 def main():
     caminho = os.path.join("Data", "Argus.xlsx")
+    resultado = []
     df = pd.DataFrame()
 
+    logging.info("🚀 Início da execução do script")
+
     if not os.path.exists(caminho):
+        logging.info("Arquivo não encontrado, criando nova base de dados")
+
         data_inicial = datetime.strptime("2025-11-10", "%Y-%m-%d")
         data_final = data_inicial
 
         while True:
             try:
+                logging.info(f"Consultando API para data: {data_inicial.date()}")
+
                 data = fazer_requisicao(data_inicial, data_final)
-                tabulacoes = tratar_datas_api(data.get("tabulacoes", []))
+                tabulacoes = tratar_datas_api(data.get("ligacoesDetalhadas", []))
                 resultado.append(tabulacoes)
 
                 data_inicial += timedelta(days=1)
@@ -133,57 +140,60 @@ def main():
                     break
 
             except Exception as e:
-                print(f"❌ Erro ao processar {e}")
+                logging.exception(f"Erro ao processar data {data_inicial.date()}: {e}")
 
     else:
+        logging.info("Arquivo encontrado, carregando dados existentes")
+
         df = pd.read_excel(caminho)
+        df['dataHoraLigacao'] = pd.to_datetime(df['dataHoraLigacao'], errors='coerce').dt.date
 
-        df['dataEvento'] = pd.to_datetime(df['dataEvento'], errors='coerce').dt.date
+        ultima_data = max(df['dataHoraLigacao'])
+        logging.info(f"Última data salva no Excel: {ultima_data}")
 
-        ultima_data = max(df['dataEvento'])
-        print(ultima_data)
-        print("Última data salva:", ultima_data)
+        # Remover completamente a última data para reprocessar
+        df = df[df['dataHoraLigacao'] != ultima_data]
 
-        # remover totalmente a última data
-        df = df[df['dataEvento'] != ultima_data]
-
-        # buscar novamente
+        # Buscar novamente essa data
         data_inicial = datetime.combine(ultima_data, datetime.min.time())
         data_final = data_inicial
 
         while True:
             try:
+                logging.info(f"Consultando API para data: {data_inicial.date()}")
+
                 data = fazer_requisicao(data_inicial, data_final)
-                tabulacoes = tratar_datas_api(data.get("tabulacoes", []))
+                tabulacoes = tratar_datas_api(data.get("ligacoesDetalhadas", []))
                 resultado.append(tabulacoes)
 
                 data_inicial += timedelta(days=1)
                 data_final = data_inicial
-                print(f"Data atual: {data_inicial}")
 
                 if data_inicial >= datetime.now():
                     break
 
             except Exception as e:
-                print(f"❌ Erro ao processar {e}") 
-    
+                logging.exception(f"Erro ao processar data {data_inicial.date()}: {e}")
+
+    # Flatten da lista
     novos_registros = [item for sublist in resultado for item in sublist]
 
     if novos_registros:
+        logging.info(f"{len(novos_registros)} novos registros encontrados")
+
         df_novo = pd.DataFrame.from_records(novos_registros)
         df = pd.concat([df, df_novo], ignore_index=True)
 
-        df['dataEvento'] = pd.to_datetime(df['dataEvento'], errors='coerce').dt.date
-
+        df['dataHoraLigacao'] = pd.to_datetime(df['dataHoraLigacao'], errors='coerce').dt.date
         df.to_excel(caminho, index=False)
-        print("✅ Atualização concluída")
+
+        logging.info("✅ Atualização concluída com sucesso")
     else:
-        print("Nenhum dado novo encontrado")
+        logging.info("Nenhum dado novo encontrado")
+
+    logging.info("🏁 Execução finalizada")
+
 
 
 if __name__ == "__main__":
-    #main()
-    data_inicial = datetime.strptime("2025-11-25", "%Y-%m-%d")
-    data_final = data_inicial
-    data = fazer_requisicao(data_inicial,data_final)
-    salvar_json(data)
+    main()

@@ -1,0 +1,24 @@
+2025-11-28 11:02:23,900 [INFO] \U0001f680 Início da execução do script
+2025-11-28 11:02:23,900 [INFO] Arquivo não encontrado, criando nova base de dados
+2025-11-28 11:02:23,901 [INFO] Consultando API para data: 2025-11-10
+2025-11-28 11:02:25,237 [INFO] Consultando API para data: 2025-11-11
+2025-11-28 11:02:34,489 [INFO] Consultando API para data: 2025-11-12
+2025-11-28 11:02:45,139 [INFO] Consultando API para data: 2025-11-13
+2025-11-28 11:02:53,220 [INFO] Consultando API para data: 2025-11-14
+2025-11-28 11:03:03,714 [INFO] Consultando API para data: 2025-11-15
+2025-11-28 11:03:05,656 [INFO] Consultando API para data: 2025-11-16
+2025-11-28 11:03:07,184 [INFO] Consultando API para data: 2025-11-17
+2025-11-28 11:03:14,548 [INFO] Consultando API para data: 2025-11-18
+2025-11-28 11:03:22,444 [INFO] Consultando API para data: 2025-11-19
+2025-11-28 11:03:31,428 [INFO] Consultando API para data: 2025-11-20
+2025-11-28 11:03:32,731 [INFO] Consultando API para data: 2025-11-21
+2025-11-28 11:03:42,887 [INFO] Consultando API para data: 2025-11-22
+2025-11-28 11:03:43,944 [INFO] Consultando API para data: 2025-11-23
+2025-11-28 11:03:45,170 [INFO] Consultando API para data: 2025-11-24
+2025-11-28 11:03:55,149 [INFO] Consultando API para data: 2025-11-25
+2025-11-28 11:04:03,725 [INFO] Consultando API para data: 2025-11-26
+2025-11-28 11:04:11,989 [INFO] Consultando API para data: 2025-11-27
+2025-11-28 11:04:21,190 [INFO] Consultando API para data: 2025-11-28
+2025-11-28 11:04:25,491 [INFO] 185527 novos registros encontrados
+2025-11-28 11:07:42,278 [INFO] \u2705 Atualização concluída com sucesso
+2025-11-28 11:07:42,279 [INFO] \U0001f3c1 Execução finalizada
