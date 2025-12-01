@@ -14,7 +14,7 @@ load_dotenv()
 api_token = os.getenv("TOKEN_API_ARGUS")
 
 path_log_file = "logs/argus.log"
-path_data_file = "data/argus.xlsx"
+path_data_file = "data/argus_tabulacoes.xlsx"
 path_data_dict = ""
 
 
@@ -61,7 +61,7 @@ def fazer_requisicao(data_inicial, data_final):
     data_final = data_final.strftime("%Y-%m-%d")
 
     url = (
-        f"https://argus.app.br/apiargus/report/ligacoesdetalhadas?"
+        f"https://argus.app.br/apiargus/report/tabulacoesdetalhadas?"
         f"periodoInicial={data_inicial}&periodoFinal={data_final}&idCampanha=1"
     )
 
@@ -91,15 +91,15 @@ def fazer_requisicao(data_inicial, data_final):
 #     print("✅ Excel salvo com colunas corretas")
 def tratar_datas_api(tabulacoes):
     for item in tabulacoes:
-        if 'dataHoraLigacao' in item and item['dataHoraLigacao']:
-            dt = datetime.fromisoformat(item['dataHoraLigacao'])
+        if 'dataEvento' in item and item['dataEvento']:
+            dt = datetime.fromisoformat(item['dataEvento'])
 
             # remover timezone
             dt = dt.replace(tzinfo=None)
 
             # criar novos campos
-            item['dataHoraLigacao'] = dt.date()
-            item['horaLigacao'] = dt.time()
+            item['dataEvento'] = dt.date()
+            item['horaEvento'] = dt.time()
 
         if 'dataImportacao' in item and item['dataImportacao']:
             dt = datetime.fromisoformat(item['dataImportacao'])
@@ -113,7 +113,7 @@ def tratar_datas_api(tabulacoes):
 resultado = []
 
 def main():
-    caminho = os.path.join("Data", "Argus.xlsx")
+    caminho = os.path.join("Data", "Argus_tabulacoes.xlsx")
     resultado = []
     df = pd.DataFrame()
 
@@ -146,13 +146,13 @@ def main():
         logging.info("Arquivo encontrado, carregando dados existentes")
 
         df = pd.read_excel(caminho)
-        df['dataHoraLigacao'] = pd.to_datetime(df['dataHoraLigacao'], errors='coerce').dt.date
+        df['dataEvento'] = pd.to_datetime(df['dataEvento'], errors='coerce').dt.date
 
-        ultima_data = max(df['dataHoraLigacao'])
+        ultima_data = max(df['dataEvento'])
         logging.info(f"Última data salva no Excel: {ultima_data}")
 
         # Remover completamente a última data para reprocessar
-        df = df[df['dataHoraLigacao'] != ultima_data]
+        df = df[df['dataEvento'] != ultima_data]
 
         # Buscar novamente essa data
         data_inicial = datetime.combine(ultima_data, datetime.min.time())
@@ -184,7 +184,7 @@ def main():
         df_novo = pd.DataFrame.from_records(novos_registros)
         df = pd.concat([df, df_novo], ignore_index=True)
 
-        df['dataHoraLigacao'] = pd.to_datetime(df['dataHoraLigacao'], errors='coerce').dt.date
+        df['dataEvento'] = pd.to_datetime(df['dataEvento'], errors='coerce').dt.date
         df.to_excel(caminho, index=False)
 
         logging.info("✅ Atualização concluída com sucesso")
