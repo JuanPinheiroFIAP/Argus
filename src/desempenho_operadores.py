@@ -16,7 +16,6 @@ api_token = os.getenv("TOKEN_API_ARGUS")
 path_data_file = "data/argus_tabulacoes.xlsx"
 path_data_dict = ""
 
-
 TENANT_ID = os.getenv("TENANT_ID")
 CLIENT_ID_MS = os.getenv("CLIENT_ID_MS")
 CLIENT_SECRET_MS = os.getenv("CLIENT_SECRET_MS")
@@ -59,6 +58,7 @@ def upload_files():
             print(f"✅ Upload OK: {file}")
         else:
             print(f"❌ Erro {file}: {r.text}")
+
 
 # --- LOGGING ---
 os.makedirs("logs", exist_ok=True)
@@ -104,7 +104,7 @@ def fazer_requisicao(data_inicial, data_final):
     data_final = data_final.strftime("%Y-%m-%d")
 
     url = (
-        f"https://argus.app.br/apiargus/report/tabulacoesdetalhadas?"
+        f"https://argus.app.br/apiargus/report/desempenhoresumido?"
         f"periodoInicial={data_inicial}&periodoFinal={data_final}&idCampanha=1"
     )
 
@@ -119,31 +119,52 @@ def fazer_requisicao(data_inicial, data_final):
     dados = response.json()
     return dados
 
+
+# def salvar_arquivo(data):
+#     caminho = os.path.join("Data", "Argus.xlsx")
+#     os.makedirs(os.path.dirname(caminho), exist_ok=True)
+
+#     # achatar lista de listas
+#     registros = [item for sublist in data for item in sublist]
+
+#     # criar DataFrame estruturado
+#     df = pd.DataFrame.from_records(registros)
+
+#     df.to_excel(caminho, index=False)
+#     print("✅ Excel salvo com colunas corretas")
 def tratar_datas_api(tabulacoes):
     for item in tabulacoes:
-        if 'dataEvento' in item and item['dataEvento']:
-            dt = datetime.fromisoformat(item['dataEvento'])
+        if 'data' in item and item['data']:
+            dt = datetime.fromisoformat(item['data'])
 
             # remover timezone
             dt = dt.replace(tzinfo=None)
 
             # criar novos campos
-            item['dataEvento'] = dt.date()
-            item['horaEvento'] = dt.time()
+            item['data'] = dt.date()
+            item['horaData'] = dt.time()
 
-        if 'dataImportacao' in item and item['dataImportacao']:
-            dt = datetime.fromisoformat(item['dataImportacao'])
+        if 'dataHoraLogin' in item and item['dataHoraLogin']:
+            dt = datetime.fromisoformat(item['dataHoraLogin'])
             dt = dt.replace(tzinfo=None)
 
-            item['dataImportacao'] = dt.date()
-            item['horaImportacao'] = dt.time()
+            item['dataHoraLogin'] = dt.date()
+            item['horaLogin'] = dt.time()
+        
+        if 'dataHoraLogout' in item and item['dataHoraLogout']:
+            dt = datetime.fromisoformat(item['dataHoraLogout'])
+            dt = dt.replace(tzinfo=None)
+
+            item['dataHoraLogout'] = dt.date()
+            item['horaLogout'] = dt.time()
+
 
     return tabulacoes
 
 resultado = []
 
 def main():
-    caminho = os.path.join("Data", "Argus_tabulacoes.xlsx")
+    caminho = os.path.join("Data", "Argus_desempenho_operadores.xlsx")
     resultado = []
     df = pd.DataFrame()
 
@@ -160,7 +181,7 @@ def main():
                 logging.info(f"Consultando API para data: {data_inicial.date()}")
 
                 data = fazer_requisicao(data_inicial, data_final)
-                tabulacoes = tratar_datas_api(data.get("tabulacoes", []))
+                tabulacoes = tratar_datas_api(data.get("desempenhosResumidos", []))
                 resultado.append(tabulacoes)
                 
 
@@ -174,16 +195,18 @@ def main():
                 logging.exception(f"Erro ao processar data {data_inicial.date()}: {e}")
 
     else:
-        logging.info("Arquivo encontrado, carregando dados existentes")
+        logging.info(f"Arquivo encontrado, carregando dados existentes{caminho}")
 
         df = pd.read_excel(caminho)
-        df['dataEvento'] = pd.to_datetime(df['dataEvento'], errors='coerce').dt.date
+        df['data'] = pd.to_datetime(df['data'], errors='coerce').dt.date
 
-        ultima_data = max(df['dataEvento'])
+        ultima_data = max(df['data'])
+        ultima_data  -= timedelta(days=1)
+        print(ultima_data)
         logging.info(f"Última data salva no Excel: {ultima_data}")
 
         # Remover completamente a última data para reprocessar
-        df = df[df['dataEvento'] != ultima_data]
+        df = df[df['data'] != ultima_data]
 
         # Buscar novamente essa data
         data_inicial = datetime.combine(ultima_data, datetime.min.time())
@@ -194,7 +217,7 @@ def main():
                 logging.info(f"Consultando API para data: {data_inicial.date()}")
 
                 data = fazer_requisicao(data_inicial, data_final)
-                tabulacoes = tratar_datas_api(data.get("tabulacoes", []))
+                tabulacoes = tratar_datas_api(data.get("desempenhosResumidos", []))
                 resultado.append(tabulacoes)
 
                 data_inicial += timedelta(days=1)
@@ -215,7 +238,7 @@ def main():
         df_novo = pd.DataFrame.from_records(novos_registros)
         df = pd.concat([df, df_novo], ignore_index=True)
 
-        df['dataEvento'] = pd.to_datetime(df['dataEvento'], errors='coerce').dt.date
+        df['data'] = pd.to_datetime(df['data'], errors='coerce').dt.date
         df.to_excel(caminho, index=False)
 
         logging.info("✅ Atualização concluída com sucesso")

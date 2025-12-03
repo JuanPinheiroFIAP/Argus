@@ -17,6 +17,49 @@ path_log_file = "logs/argus.log"
 path_data_file = "data/argus.xlsx"
 path_data_dict = ""
 
+TENANT_ID = os.getenv("TENANT_ID")
+CLIENT_ID_MS = os.getenv("CLIENT_ID_MS")
+CLIENT_SECRET_MS = os.getenv("CLIENT_SECRET_MS")
+
+DRIVE_ID = os.getenv("DRIVE_ID")
+SHAREPOINT_PATH = os.getenv("SHAREPOINT_PATH", "/Relatórios BI/Base Argus")
+
+PASTA_DESTINO = "Data"
+os.makedirs(PASTA_DESTINO, exist_ok=True)
+# =============================
+# TOKEN MICROSOFT
+# =============================
+def get_access_token_ms():
+    url = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token"
+    payload = {
+        "client_id": CLIENT_ID_MS,
+        "scope": "https://graph.microsoft.com/.default",
+        "client_secret": CLIENT_SECRET_MS,
+        "grant_type": "client_credentials"
+    }
+    response = requests.post(url, data=payload, timeout=15)
+    response.raise_for_status()
+    return response.json()['access_token']
+
+# =============================
+# UPLOAD SHAREPOINT
+# =============================
+def upload_files():
+    token = get_access_token_ms()
+    headers = {'Authorization': f'Bearer {token}'}
+
+    for file in os.listdir(PASTA_DESTINO):
+        path = os.path.join(PASTA_DESTINO, file)
+        url = f"https://graph.microsoft.com/v1.0/drives/{DRIVE_ID}/root:{SHAREPOINT_PATH}/{file}:/content"
+
+        with open(path, 'rb') as f:
+            r = requests.put(url, headers=headers, data=f)
+
+        if r.status_code in [200, 201]:
+            print(f"✅ Upload OK: {file}")
+        else:
+            print(f"❌ Erro {file}: {r.text}")
+
 # --- Funções ---
 class TLSAdapter(HTTPAdapter):
     def init_poolmanager(self, *args, **kwargs):
@@ -91,7 +134,7 @@ def main():
     pagina = 1
     id_proxima = 0
 
-    caminho = os.path.join("Data", "Argus.xlsx")
+    caminho = os.path.join("Data", "Argus_ligacoes_detalhadas.xlsx")
     df = pd.DataFrame()
 
     logging.info("🚀 Início da execução do script")
@@ -182,3 +225,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    upload_files()
